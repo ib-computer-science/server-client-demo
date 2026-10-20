@@ -51,4 +51,9 @@ class ApplicationWindow:
         self.status_var.set(txt)
 
     def invoke_later(self, func):
-        self.window.after(0, func)
+        # update_idletasks() forces pending GUI changes (status text,
+        # button state, this window's own initial mapping) to actually
+        # reach the display before func potentially blocks for a long
+        # time; after()/after_idle() do not guarantee this flush here.
+        self.window.update_idletasks()
+        func()

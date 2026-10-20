@@ -63,7 +63,7 @@ then once per client), each in its own terminal/process. Unlike a
 single-process IDE "run configuration", separate OS processes don't
 need any special "allow multiple instances" setting.
 
-## Blocking network operations, GUI and `after()`
+## Blocking network operations, GUI and `update_idletasks()`
 
 Network operations, such as the server accepting (listening for) a
 connection taken by a client, are blocking: the program will not
@@ -75,22 +75,28 @@ two significant implications:
 2. If something - such as a piece of text, or the activity of a
    button - is changed in the GUI just prior to the blocking
    operation, this change will become visible to the user *after* the
-   blocking operation is completed. This is because the GUI will show
-   the GUI change only when Tkinter's event loop resumes its
-   operation.
+   blocking operation is completed, unless the GUI is explicitly told
+   to flush pending changes to the display first. Unlike Swing, whose
+   `invokeLater()` reliably defers a callback until after already
+   pending GUI work (including painting) has been handled, Tkinter's
+   `after(0, func)` and `after_idle(func)` do *not* guarantee that a
+   window just created or just updated has actually reached the
+   display before `func` runs - testing against the real X server
+   confirms the window can still be completely unmapped at that
+   point.
 
 To modify a GUI just prior to blocking, the GUI must be modified and
-allowed to show this modification, before the blocking operation. The
-use of `widget.after(0, func)` (the Tkinter analogue of Swing's
-`invokeLater()`) makes this possible:
+allowed to show this modification, before the blocking operation.
+Calling `widget.update_idletasks()` makes this possible:
 
 1. Modify the GUI.
-2. Call `after(0, func)`, passing the blocking operation as `func`.
-3. Control returns to the Tkinter event loop. The GUI will first show
-   the modification, and then execute the blocking operation from the
-   event queue.
+2. Call `update_idletasks()`. This forces Tkinter to process pending
+   layout and redraw work and flush it to the display immediately,
+   instead of leaving it queued.
+3. Only then call the blocking operation.
 
-An example of this can be found in method `_accept_client()` of class
+An example of this can be found in method `invoke_later()` of class
+`ApplicationWindow`, used by e.g. `_accept_client()` of class
 `Server`.
 
 ## Installation
